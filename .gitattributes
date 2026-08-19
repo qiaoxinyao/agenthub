@@ -1,0 +1,4 @@
+# 统一换行符：文本文件用文本模式，shell 钩子强制 LF（CRLF 会破坏 sh 执行）
+* text=auto
+.githooks/** text eol=lf
+*.sh text eol=lf

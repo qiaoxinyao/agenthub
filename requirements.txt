@@ -1,0 +1,26 @@
+# ===== AgentHub 依赖清单 =====
+# 原则：按模块增量安装，不一次性装全（8GB 机器 + 一次一功能）。
+# 阶段0 只装「核心 Web 框架」，保证空服务能起。
+
+# ---- 核心 Web 框架（阶段0 安装）----
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
+pydantic-settings>=2.2
+
+# ---- 模块1 加入：MySQL 存取 ----
+# sqlalchemy>=2.0
+# pymysql>=1.1
+
+# ---- 模块2 加入：知识库 ----
+# openai>=1.30          # 调百炼 OpenAI 兼容端点的官方 SDK（对话/向量/Function Calling 共用）
+# chromadb>=0.5
+# pypdf>=4.0            # PDF 文本提取（方案自带要求）
+# python-multipart      # FastAPI 文件上传
+
+# ---- 模块4 加入：会话上下文 ----
+# redis>=5.0
+
+# ---- 测试（阶段0 安装）----
+pytest>=8.0
+httpx>=0.27   # FastAPI TestClient 依赖

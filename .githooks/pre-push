@@ -1,0 +1,24 @@
+#!/bin/sh
+# pre-push 钩子：推送前最后一道防线，确认仓库里没有密钥文件。
+
+if git diff --name-only HEAD | grep -E '(^|/)\.env($|\.)' | grep -v '\.env\.example$' > /dev/null; then
+  echo "错误：仓库中检测到 .env 文件，已阻止推送。" >&2
+  echo "请先执行：git rm --cached .env（并确认 .gitignore 已忽略 .env）" >&2
+  exit 1
+fi
+
+# 推送前顺带跑一次测试（优先用项目 venv 的 python；venv 不存在时退化为系统 python）
+if command -v ./.venv/Scripts/python >/dev/null 2>&1; then
+  PY=./.venv/Scripts/python
+else
+  PY=python
+fi
+
+if $PY -c "import pytest" >/dev/null 2>&1; then
+  $PY -m pytest -q > /dev/null 2>&1 || {
+    echo "错误：测试未通过，已阻止推送。请先运行：$PY -m pytest" >&2
+    exit 1
+  }
+fi
+
+exit 0

@@ -1,0 +1,12 @@
+#!/bin/sh
+# pre-commit 钩子：阻止把密钥/环境文件提交进仓库。
+# 真实密钥只放本机 .env（已 gitignore），仓库里只允许 .env.example。
+
+if git diff --cached --name-only | grep -E '(^|/)\.env($|\.)' | grep -v '\.env\.example$' > /dev/null; then
+  echo "错误：检测到 .env 文件被暂存（git add）了，已阻止本次提交。" >&2
+  echo "真实密钥只应存在于本机的 .env（已被 .gitignore 忽略）。" >&2
+  echo "如需版本化配置，请把占位值放到 .env.example。" >&2
+  exit 1
+fi
+
+exit 0

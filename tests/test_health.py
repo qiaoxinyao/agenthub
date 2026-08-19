@@ -26,3 +26,10 @@ def test_docs():
     resp = client.get("/docs")
     assert resp.status_code == 200
     assert "swagger" in resp.text.lower() or "Swagger UI" in resp.text
+
+
+def test_ui_console():
+    """控制台前端（静态托管）可访问。"""
+    resp = client.get("/ui")
+    assert resp.status_code == 200
+    assert "AgentHub 控制台" in resp.text

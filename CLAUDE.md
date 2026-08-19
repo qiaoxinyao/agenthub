@@ -6,7 +6,7 @@
 ## 项目是什么
 - 名称：agenthub（mini Agent 应用管理平台后端）
 - 一句话：面向企业内部的 Agent 平台，支持创建多个 Agent、管理各自知识库、通过统一 API 提供对话服务，内置 RAG 检索、工具调用与任务编排。
-- 形态：简化版 Dify 的后端（无正式前端，仅 Streamlit 演示页）
+- 形态：简化版 Dify 的后端（开发/演示用自带轻量控制台 `/ui`，无正式前端；收尾阶段加 Streamlit 演示页）
 
 ## 技术栈（严格按项目方案，不擅自增删）
 - Python 3.10+ / FastAPI（OpenAI 兼容模式接入大模型）
@@ -23,7 +23,7 @@
 6. 双路检索：向量库语义 + ES 关键词，融合排序
 
 ## 明确不做（写进 README"后续规划"，不要实现）
-多 Agent 协作、模型微调、权限系统、正式前端
+多 Agent 协作、模型微调、权限系统、正式前端。注：`/ui` 是零依赖的开发/演示控制台（web/），不是"正式前端"，可随模块逐步加页签。
 
 ## 开发规范（重要，每次对话都要遵守）
 - 一次只实现一个功能，完成并测试通过后再开始下一个
@@ -42,4 +42,5 @@
 - 设计文档：docs/architecture.md、docs/database.md、docs/api.md
 - 决策日志：docs/decisions.md
 - 代码：app/（main.py 入口、models/ 数据模型、api/ 路由、services/ 业务逻辑、core/ 配置与通用能力）
-- 演示页：demo/（Streamlit）
+- 演示页：demo/（Streamlit，收尾阶段）
+- 控制台：web/（/ui，原生 HTML+JS，零依赖，随模块生长）

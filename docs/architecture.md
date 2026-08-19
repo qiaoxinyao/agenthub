@@ -4,7 +4,7 @@
 
 ## 1. 一句话架构
 
-AgentHub 是一个前后端分离的纯后端项目：**FastAPI 提供 RESTful API，编排层串起「配置 → 历史 → 检索 → 工具 → 大模型」五步，MySQL/Redis/Chroma/ES 各司其职，百炼大模型走 OpenAI 兼容端点**。没有任何正式前端，只有收尾阶段的一个 Streamlit 演示页。
+AgentHub 是一个前后端分离的纯后端项目：**FastAPI 提供 RESTful API，编排层串起「配置 → 历史 → 检索 → 工具 → 大模型」五步，MySQL/Redis/Chroma/ES 各司其职，百炼大模型走 OpenAI 兼容端点**。没有正式产品前端；开发/演示用**自带零依赖控制台**（`web/` → `/ui`，随模块长页签），收尾阶段再加一个 Streamlit 演示页。
 
 ## 2. 总体分层
 
@@ -94,13 +94,17 @@ AgentHub 是一个前后端分离的纯后端项目：**FastAPI 提供 RESTful A
 ```
 agenthub/
 ├── app/                    # 后端主代码
-│   ├── main.py             # FastAPI 入口
+│   ├── main.py             # FastAPI 入口（含 /ui 静态托管）
 │   ├── core/               # config/db/redis/llm/chunking
 │   ├── models/             # SQLAlchemy 模型（6 张表）
 │   ├── schemas/            # Pydantic 请求/响应
 │   ├── api/                # 路由（agents/knowledge/chat/sessions/tool_logs）
 │   ├── services/           # 业务逻辑
 │   └── tools/              # 内置工具定义
+├── web/                    # 原生 HTML+JS 控制台（/ui，零依赖，随模块生长）
+│   ├── index.html
+│   ├── style.css
+│   └── app.js
 ├── chunker/                # Go 切分微服务
 ├── demo/                   # Streamlit 演示页（收尾）
 ├── docs/                   # 本文档 + database.md + api.md + decisions.md

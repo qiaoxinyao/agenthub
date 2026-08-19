@@ -9,8 +9,8 @@ pydantic>=2.6
 pydantic-settings>=2.2
 
 # ---- 模块1 加入：MySQL 存取 ----
-# sqlalchemy>=2.0
-# pymysql>=1.1
+sqlalchemy>=2.0
+pymysql>=1.1
 
 # ---- 模块2 加入：知识库 ----
 # openai>=1.30          # 调百炼 OpenAI 兼容端点的官方 SDK（对话/向量/Function Calling 共用）

@@ -2,7 +2,7 @@
 
 面向企业内部的 **Agent 应用管理平台后端**（简化版 Dify）：支持创建多个 Agent、管理各自知识库、通过统一 REST API 对外提供对话服务，内置 RAG 检索、工具调用与任务编排。
 
-> 当前处于**开发初期（阶段 0 初始化）**。README 会在「收尾」阶段按开源标准补齐（Quick Start / 架构图 / 截图）。
+> 当前进度：**模块 1（Agent 管理）已完成**，模块 2（知识库管理）进行中。README 会在「收尾」阶段按开源标准补齐（Quick Start / 架构图 / 截图）。
 
 ## 快速开始（开发期）
 
@@ -18,7 +18,8 @@ cp .env.example .env
 .venv/Scripts/python -m uvicorn app.main:app --reload --port 8000
 ```
 
-打开 http://127.0.0.1:8000/docs 查看 Swagger 接口文档。
+- 打开 **http://127.0.0.1:8000/ui** 使用自带控制台界面（零依赖原生 HTML+JS，随模块生长）
+- 打开 http://127.0.0.1:8000/docs 查看 Swagger 接口文档
 
 > 注意：`.env` 已被 `.gitignore` 忽略，绝不提交进仓库；真实密钥只存在于你的本机。
 
@@ -38,3 +39,4 @@ Python 3.10+ / FastAPI / MySQL / Redis / Chroma / Elasticsearch / 阿里云百�
 ## 明确不做（后续规划）
 
 多 Agent 协作、模型微调、权限系统、正式前端。
+> 注：`/ui` 自带控制台是**开发/演示用的轻量原生界面**（零依赖、随模块生长），不属于"正式前端"；演示用 Streamlit 页在收尾阶段补齐。

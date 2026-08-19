@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgentHub 控制台</title>
+  <link rel="stylesheet" href="/ui/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-left">
+      <h1>🤖 AgentHub 控制台</h1>
+      <span class="badge">本机开发环境</span>
+    </div>
+    <a class="docs-link" href="/docs" target="_blank">接口文档 /docs ↗</a>
+  </header>
+
+  <div class="layout">
+    <!-- 侧边导航：控制台随模块生长，未开发的页签显示占位 -->
+    <nav class="sidebar">
+      <button class="tab active" data-tab="agents">Agent 管理</button>
+      <button class="tab" data-tab="knowledge">知识库</button>
+      <button class="tab" data-tab="chat">对话</button>
+      <button class="tab" data-tab="logs">工具日志</button>
+    </nav>
+
+    <main class="content">
+      <!-- ========== Agent 管理 ========== -->
+      <section id="tab-agents" class="panel active">
+        <div class="card">
+          <h2 id="form-title">新建 Agent</h2>
+          <form id="agent-form" class="grid-form">
+            <input type="hidden" id="f-id">
+            <div class="field">
+              <label for="f-name">名称 *</label>
+              <input id="f-name" required maxlength="64" placeholder="如：客服助手">
+            </div>
+            <div class="field">
+              <label for="f-model">模型</label>
+              <select id="f-model">
+                <option value="qwen-turbo">qwen-turbo（调试/便宜）</option>
+                <option value="qwen-plus">qwen-plus（演示/更强）</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="f-temp">温度（0-2）</label>
+              <input id="f-temp" type="number" min="0" max="2" step="0.1" value="0.7">
+            </div>
+            <div class="field">
+              <label for="f-max-tokens">最大 token</label>
+              <input id="f-max-tokens" type="number" min="1" max="8192" value="1024">
+            </div>
+            <div class="field full">
+              <label for="f-desc">一句话描述</label>
+              <input id="f-desc" maxlength="255" placeholder="这个 Agent 是干嘛的">
+            </div>
+            <div class="field full">
+              <label for="f-prompt">提示词模板（Prompt）</label>
+              <textarea id="f-prompt" rows="4" placeholder="你是{role}，请用中文回答。\n当用户问产品问题时，用简洁的语言回答。"></textarea>
+            </div>
+            <div class="field">
+              <label for="f-tools">绑定工具（逗号分隔）</label>
+              <input id="f-tools" placeholder="如：kb_search, get_time">
+            </div>
+            <div class="field">
+              <label for="f-kbs">知识库 id（逗号分隔）</label>
+              <input id="f-kbs" placeholder="模块2 起生效，如：1,2">
+            </div>
+            <div class="field check">
+              <label><input type="checkbox" id="f-rag"> 启用知识库检索（use_rag）</label>
+            </div>
+            <div class="actions full">
+              <button type="submit" class="btn primary" id="btn-submit">创建</button>
+              <button type="button" class="btn ghost" id="btn-cancel" hidden>取消编辑</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>Agent 列表</h2>
+            <input id="search-name" class="search" placeholder="按名称搜索…">
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th><th>名称</th><th>模型</th><th>温度</th>
+                <th>检索</th><th>工具</th><th>状态</th><th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="agent-tbody">
+              <tr><td colspan="8" class="empty">加载中…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ========== 占位页签 ========== -->
+      <section id="tab-knowledge" class="panel">
+        <div class="placeholder">🔧 知识库管理 —— 模块 2 接入<br><span>上传文档、切块、检索测试都会在这里</span></div>
+      </section>
+      <section id="tab-chat" class="panel">
+        <div class="placeholder">💬 对话服务 —— 模块 3 接入<br><span>选一个 Agent 直接对话</span></div>
+      </section>
+      <section id="tab-logs" class="panel">
+        <div class="placeholder">📋 工具调用日志 —— 模块 5 接入<br><span>看 Agent 每一步调用了什么工具</span></div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+  <script src="/ui/app.js"></script>
+</body>
+</html>

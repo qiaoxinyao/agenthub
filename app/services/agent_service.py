@@ -8,7 +8,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import Agent, AgentKbBinding
+from app.models import Agent, AgentKbBinding, KnowledgeBase
 from app.schemas.agent import AgentCreate, AgentOut, AgentUpdate
 
 
@@ -55,6 +55,19 @@ def _replace_bindings(db: Session, agent: Agent, knowledge_base_ids: list[int]) 
     db.flush()
 
 
+def _validate_kb_ids(db: Session, knowledge_base_ids: list[int]) -> None:
+    """绑定前校验知识库真实存在（应用层保证完整性，物理外键见 decisions.md）。"""
+    if not knowledge_base_ids:
+        return
+    existed = set(
+        db.scalars(select(KnowledgeBase.id).where(KnowledgeBase.id.in_(knowledge_base_ids))).all()
+    )
+    missing = sorted(set(knowledge_base_ids) - existed)
+    if missing:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"要绑定的知识库不存在：{missing}")
+
+
 # ---------- 对外接口 ----------
 
 def create_agent(db: Session, payload: AgentCreate) -> AgentOut:
@@ -72,6 +85,7 @@ def create_agent(db: Session, payload: AgentCreate) -> AgentOut:
     )
     db.add(agent)
     db.flush()  # 先落 id，绑定时才能挂上 agent_id
+    _validate_kb_ids(db, payload.knowledge_base_ids)
     _replace_bindings(db, agent, payload.knowledge_base_ids)
     db.commit()
     db.refresh(agent)
@@ -116,6 +130,7 @@ def update_agent(db: Session, agent_id: int, payload: AgentUpdate) -> AgentOut:
 
     # 重新绑定：没传就保持原样，传了（含空列表）就全量替换
     if "knowledge_base_ids" in changes:
+        _validate_kb_ids(db, payload.knowledge_base_ids)
         _replace_bindings(db, agent, payload.knowledge_base_ids)
 
     db.commit()

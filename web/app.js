@@ -161,6 +161,163 @@ async function removeAgent(id, name) {
   }
 }
 
+/* ---------- 知识库管理 ---------- */
+
+let currentKbId = null; // 当前正在查看哪个知识库
+
+// 多部分表单上传（文件不走 JSON）
+async function apiMultipart(method, path, formData) {
+  const resp = await fetch(API + path, { method, body: formData });
+  if (!resp.ok) {
+    let detail = `HTTP ${resp.status}`;
+    try { detail = (await resp.json()).detail || detail; } catch (_) {}
+    throw new Error(detail);
+  }
+  return resp.status === 204 ? null : resp.json();
+}
+
+function fmtSize(bytes) {
+  if (!bytes) return "—";
+  return bytes > 1024 ? (bytes / 1024).toFixed(1) + " KB" : bytes + " B";
+}
+
+function fmtDate(s) {
+  return s ? String(s).replace("T", " ").slice(0, 16) : "";
+}
+
+async function loadKnowledgeBases() {
+  const tbody = document.getElementById("kb-tbody");
+  try {
+    const data = await api("GET", "/knowledge-bases?size=100");
+    tbody.innerHTML = data.items.length
+      ? data.items.map(kbRow).join("")
+      : '<tr><td colspan="5" class="empty">还没有知识库，先在上方创建</td></tr>';
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty">加载失败：${e.message}</td></tr>`;
+  }
+}
+
+function kbRow(kb) {
+  return `<tr>
+    <td>${kb.id}</td>
+    <td><strong>${esc(kb.name)}</strong><br><span style="color:var(--muted)">${esc(kb.description) || "&nbsp;"}</span></td>
+    <td>${kb.doc_count}</td>
+    <td>${fmtDate(kb.created_at)}</td>
+    <td><button class="btn ghost op-btn" onclick="selectKb('${kb.id}', '${esc(kb.name, true)}')">📂 文档</button></td>
+  </tr>`;
+}
+
+async function createKb() {
+  const name = document.getElementById("kb-name").value.trim();
+  if (!name) return toast("请填知识库名称", "err");
+  try {
+    await api("POST", "/knowledge-bases", { name, description: document.getElementById("kb-desc").value.trim() });
+    toast("知识库创建成功 🎉", "ok");
+    document.getElementById("kb-name").value = "";
+    document.getElementById("kb-desc").value = "";
+    loadKnowledgeBases();
+  } catch (e) { toast("失败：" + e.message, "err"); }
+}
+
+async function selectKb(id, name) {
+  currentKbId = id;
+  document.getElementById("kb-detail").hidden = false;
+  document.getElementById("kb-title").textContent = `文档管理（知识库：${name}）`;
+  document.getElementById("search-results").innerHTML = "";
+  loadDocuments();
+}
+
+function closeKb() {
+  currentKbId = null;
+  document.getElementById("kb-detail").hidden = true;
+  loadKnowledgeBases();
+}
+
+async function loadDocuments() {
+  if (currentKbId == null) return;
+  const tbody = document.getElementById("doc-tbody");
+  try {
+    const data = await api("GET", `/documents?kb_id=${currentKbId}&size=100`);
+    tbody.innerHTML = data.items.length
+      ? data.items.map(docRow).join("")
+      : '<tr><td colspan="8" class="empty">还没有文档，选个 PDF/TXT/MD 上传试试</td></tr>';
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="8" class="empty">加载失败：${e.message}</td></tr>`;
+  }
+}
+
+const DOC_STATUS = {
+  ready: '<span class="chip on">就绪</span>',
+  processing: '<span class="chip">处理中</span>',
+  pending: '<span class="chip">排队</span>',
+  failed: '<span class="chip off" title="看看错误列">失败</span>',
+};
+
+function docRow(d) {
+  return `<tr>
+    <td>${d.id}</td>
+    <td>${esc(d.filename)}</td>
+    <td>${esc(d.file_type)}</td>
+    <td>${fmtSize(d.size_bytes)}</td>
+    <td>${DOC_STATUS[d.status] || esc(d.status)}</td>
+    <td>${d.chunk_count}</td>
+    <td style="max-width:180px;color:var(--danger)">${esc(d.error_msg)}</td>
+    <td><button class="btn danger op-btn" onclick="removeDoc(${d.id})">删除</button></td>
+  </tr>`;
+}
+
+async function uploadDoc() {
+  if (currentKbId == null) return toast("先点一个知识库的「文档」按钮", "err");
+  const input = document.getElementById("doc-file");
+  if (!input.files || !input.files.length) return toast("请先选择文件", "err");
+  const form = new FormData();
+  form.append("file", input.files[0]);
+  toast("上传处理中（切块+向量化需要几秒）…");
+  try {
+    const doc = await apiMultipart("POST", `/knowledge-bases/${currentKbId}/documents`, form);
+    if (doc.status === "ready") toast(`入库成功，切成 ${doc.chunk_count} 块 ✅`, "ok");
+    else toast(`处理失败：${doc.error_msg || doc.status}`, "err");
+    input.value = "";
+    loadDocuments();
+    loadKnowledgeBases();
+  } catch (e) {
+    toast("上传失败：" + e.message, "err");
+  }
+}
+
+async function removeDoc(id) {
+  if (!confirm("确定删除该文档及其向量吗？")) return;
+  try {
+    await api("DELETE", `/documents/${id}`);
+    toast("文档已删除，向量已清理", "ok");
+    loadDocuments();
+    loadKnowledgeBases();
+  } catch (e) { toast("删除失败：" + e.message, "err"); }
+}
+
+async function searchKb() {
+  if (currentKbId == null) return toast("先点一个知识库的「文档」按钮", "err");
+  const q = document.getElementById("search-query").value.trim();
+  if (!q) return toast("请输入检索词", "err");
+  const box = document.getElementById("search-results");
+  box.innerHTML = '<div class="hit loading">检索中…</div>';
+  try {
+    const data = await api("GET", `/knowledge-bases/${currentKbId}/search?query=${encodeURIComponent(q)}&top_k=5`);
+    box.innerHTML = data.results.length
+      ? data.results.map((r) => `
+          <div class="hit">
+            <div class="hit-head">
+              <span>来自文档 #${r.document_id} ${esc(r.filename)} · 块 ${r.chunk_index}</span>
+              <span class="hit-score">distance ${r.score}</span>
+            </div>
+            <div class="hit-text">${esc(r.chunk_text)}</div>
+          </div>`).join("")
+      : '<div class="hit empty">无命中，试试换个词</div>';
+  } catch (e) {
+    box.innerHTML = `<div class="hit empty">检索失败：${e.message}</div>`;
+  }
+}
+
 /* ---------- 页签切换 ---------- */
 
 document.querySelectorAll(".tab").forEach((btn) => {
@@ -184,3 +341,4 @@ function debounce(fn, ms) {
 }
 
 loadAgents();
+loadKnowledgeBases();

@@ -25,3 +25,8 @@ logs/
 
 # ===== 临时文件 =====
 _plan_text.txt
+# 编译产物
+chunker/*.exe
+
+# 测试样例（本地造数据用，不入库）
+scripts/*.txt

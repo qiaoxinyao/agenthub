@@ -12,11 +12,11 @@ pydantic-settings>=2.2
 sqlalchemy>=2.0
 pymysql>=1.1
 
-# ---- 模块2 加入：知识库 ----
-# openai>=1.30          # 调百炼 OpenAI 兼容端点的官方 SDK（对话/向量/Function Calling 共用）
-# chromadb>=0.5
-# pypdf>=4.0            # PDF 文本提取（方案自带要求）
-# python-multipart      # FastAPI 文件上传
+# ---- 模块2 加入：知识库（上传→切块→向量→入库）----
+openai>=1.30           # 调百炼 OpenAI 兼容端点（向量/对话/Function Calling 共用）
+chromadb>=0.5          # 向量库（本地持久化）
+pypdf>=4.0             # PDF 文本提取
+python-multipart       # FastAPI 文件上传
 
 # ---- 模块4 加入：会话上下文 ----
 # redis>=5.0

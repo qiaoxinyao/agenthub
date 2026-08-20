@@ -46,6 +46,16 @@
 - **选择**：新增一个**零依赖**的网页控制台（`web/`，vanilla HTML/CSS/JS + fetch 调 REST API），由 FastAPI 用 StaticFiles 直接托管（`/ui`）。不装 node、不引框架、不加内存。控制台随模块逐步生长：当前 Agent 管理页签 → 后续知识库/对话/日志页签。
 - **原因**：满足"真实交互"诉求的同时守住 8GB 机器 + 不引入重框架的底线；手写 fetch 对面试反而是加分点（能讲清每一行）。Streamlit 演示页保留在收尾阶段（截图/录 GIF 用），不与之冲突。
 
+## 2026-08-20｜模块 2 设计决策汇总
+
+- **背景**：一次实现知识库全链路（上传→切块→向量→入库→检索），涉及几处取舍。
+- **选择与原因**：
+  1. **同步处理而非异步**：文档上传后同步完成切块+向量化才返回。原因：模块 2 阶段文件小、同步能给实时反馈（状态立即从 processing → ready），且不引入后台任务框架（范围收敛）。异步留给后续优化，状态机字段已经预留（pending/processing/ready/failed）。
+  2. **切块策略（Go 实现）**：段落(\n\n)→行(\n)→句子(句末标点)→硬切，逐级自然边界断开；贪心装块（每块 ≤ chunk_size）；滑窗重叠（下块带上一块末尾 chunk_overlap 字符）。默认 500 字符/块、重叠 50。原因：贴合中文文档结构（"按意群断"），重叠保住跨块语义，这是 RAG 面试可讲的切块策略。
+  3. **Explicit embeddings（不配 embedding_function）**：向量显式由百炼 text-embedding-v4 生成并传给 Chroma，不让 Chroma 自己下载本地 embedding 模型。原因：统一用厂商模型、省本机内存、Embedding 质量与后续双路检索一致。
+  4. **agent_kb_bindings.knowledge_base_id 不加物理外键**：完整性由应用层 `_validate_kb_ids` 校验（绑定前查知识库是否存在，否则 400）。原因：避免跨表物理外键在 create_all 建表顺序上的别扭，且 6 张表范围明确。
+  5. **Chroma 持久化到 ./data/chroma**（已 gitignore）：文档正文/切块向量不进 MySQL，MySQL 只做台账。原因：各存储各司其职（见 database.md）。
+
 ## 2026-08-19｜Agent 服务层直接返回响应模型（AgentOut），而非 ORM 对象
 
 - **背景**：模块 1 实现中发现，FastAPI 用 `from_attributes` 序列化 ORM 对象时，`knowledge_base_ids`（由绑定关系算出）不存在于 ORM 属性上，触发 ResponseValidationError。

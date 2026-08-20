@@ -31,13 +31,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# 路由按模块逐步挂载（一次一个功能）：当前只有 Agent 管理
-from app.api import agents  # noqa: E402
+# 路由按模块逐步挂载（一次一个功能）：当前有 Agent 管理、知识库管理
+from app.api import agents, knowledge  # noqa: E402
 
 app.include_router(agents.router, prefix="/api")
+app.include_router(knowledge.router, prefix="/api")
 # 后续模块完成后再挂载：
-#   from app.api import knowledge, chat, sessions, tool_logs
-#   app.include_router(knowledge.router, prefix="/api")
+#   from app.api import chat, sessions, tool_logs
+#   app.include_router(chat.router, prefix="/api")
 #   ...
 
 # 控制台前端（静态托管）：/ui → web/index.html

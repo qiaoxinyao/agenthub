@@ -95,9 +95,50 @@
         </div>
       </section>
 
-      <!-- ========== 占位页签 ========== -->
+      <!-- ========== 知识库管理 ========== -->
       <section id="tab-knowledge" class="panel">
-        <div class="placeholder">🔧 知识库管理 —— 模块 2 接入<br><span>上传文档、切块、检索测试都会在这里</span></div>
+        <div class="card">
+          <h2>知识库</h2>
+          <div class="row">
+            <input id="kb-name" placeholder="新知识库名称" class="grow">
+            <input id="kb-desc" placeholder="描述（可选）" class="grow">
+            <button class="btn primary" onclick="createKb()">创建</button>
+          </div>
+          <table>
+            <thead>
+              <tr><th>ID</th><th>知识库</th><th>文档数</th><th>创建时间</th><th>操作</th></tr>
+            </thead>
+            <tbody id="kb-tbody">
+              <tr><td colspan="5" class="empty">加载中…</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card" id="kb-detail" hidden>
+          <div class="card-head">
+            <h2 id="kb-title">文档管理</h2>
+            <div class="row">
+              <input type="file" id="doc-file" accept=".pdf,.txt,.md">
+              <button class="btn primary" onclick="uploadDoc()">上传并入库 ⚙️</button>
+              <button class="btn ghost" onclick="closeKb()">返回知识库列表</button>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr><th>ID</th><th>文件名</th><th>类型</th><th>大小</th><th>状态</th><th>块数</th><th>错误</th><th>操作</th></tr>
+            </thead>
+            <tbody id="doc-tbody">
+              <tr><td colspan="8" class="empty">在上面的知识库列表点「文档」进入这里</td></tr>
+            </tbody>
+          </table>
+
+          <h2 class="spaced">检索测试</h2>
+          <div class="row">
+            <input id="search-query" placeholder="输入检索词，如：RAG" class="grow">
+            <button class="btn primary" onclick="searchKb()">检索 🔍</button>
+          </div>
+          <div id="search-results" class="search-results"></div>
+        </div>
       </section>
       <section id="tab-chat" class="panel">
         <div class="placeholder">💬 对话服务 —— 模块 3 接入<br><span>选一个 Agent 直接对话</span></div>

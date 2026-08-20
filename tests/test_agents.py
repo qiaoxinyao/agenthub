@@ -60,15 +60,33 @@ def test_update_agent_partial(client):
     name = _uniq("改")
     r = client.post("/api/agents", json={"name": name, "max_tokens": 512, "use_rag": False})
     agent_id = r.json()["id"]
+    # 先建一个真实知识库，绑定它（模块2 起绑定会校验知识库存在）
+    rkb = client.post("/api/knowledge-bases", json={"name": _uniq("知识库")})
+    kb_id = rkb.json()["id"]
     try:
-        # 只改部分字段：max_tokens + 绑定两个知识库 id
-        resp = client.put(f"/api/agents/{agent_id}", json={"max_tokens": 2048, "knowledge_base_ids": [1, 2]})
+        # 只改部分字段：max_tokens + 绑定一个真实知识库
+        resp = client.put(
+            f"/api/agents/{agent_id}",
+            json={"max_tokens": 2048, "knowledge_base_ids": [kb_id]},
+        )
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert body["max_tokens"] == 2048
-        assert body["knowledge_base_ids"] == [1, 2]
+        assert body["knowledge_base_ids"] == [kb_id]
         assert body["name"] == name          # 没传的字段保持不变
         assert body["use_rag"] is False       # 没传的字段保持不变
+    finally:
+        client.delete(f"/api/agents/{agent_id}")
+
+
+def test_bind_missing_kb_rejected(client):
+    """绑定不存在的知识库会被拒绝（400）。"""
+    name = _uniq("坏绑定")
+    r = client.post("/api/agents", json={"name": name})
+    agent_id = r.json()["id"]
+    try:
+        resp = client.put(f"/api/agents/{agent_id}", json={"knowledge_base_ids": [999999]})
+        assert resp.status_code == 400, resp.text
     finally:
         client.delete(f"/api/agents/{agent_id}")
 

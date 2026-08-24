@@ -136,6 +136,24 @@ td.empty { text-align: center; color: var(--muted); padding: 28px; }
 .hit-score { font-family: ui-monospace, monospace; }
 .hit-text { font-size: 13px; line-height: 1.7; }
 
+/* ---------- 对话页签 ---------- */
+.chat-card { display: flex; flex-direction: column; }
+.chat-box {
+  min-height: 380px; max-height: 62vh; overflow-y: auto; background: #fafbfc;
+  border: 1px solid var(--border); border-radius: 10px; padding: 14px;
+  margin-bottom: 12px; display: flex; flex-direction: column; gap: 10px;
+}
+.chat-hint { color: var(--muted); text-align: center; padding: 40px 0; }
+.msg { display: flex; }
+.msg.user { justify-content: flex-end; }      /* 自己靠右 */
+.msg.assistant { justify-content: flex-start; } /* 助手靠左 */
+.bubble {
+  max-width: 75%; padding: 9px 13px; border-radius: 12px;
+  font-size: 13.5px; line-height: 1.7; white-space: pre-wrap; word-break: break-word;
+}
+.msg.user .bubble { background: var(--primary); color: #fff; border-bottom-right-radius: 3px; }
+.msg.assistant .bubble { background: #fff; border: 1px solid var(--border); border-bottom-left-radius: 3px; }
+
 /* ---------- 占位页签（尚未开发的模块） ---------- */
 .placeholder {
   text-align: center; color: var(--muted); padding: 80px 20px;

@@ -1,7 +1,12 @@
 """Chroma 向量库封装。全项目唯一直接操作向量库的地方。
 
-要点：入库/查询都**显式传向量**，不配 embedding_function，
-这样 Chroma 不会去下载本地 embedding 模型——Embedding 统一走百炼 text-embedding-v4。
+【大白话】Chroma 是一个"轻量向量数据库"，本职是存"一串串数字 + 每一串附带的文字"，
+然后能极快地回答一个问题：给我和这句话"最像"的几段文字。
+我们把它当"知识库的搜索引擎"用：存文档切块，检索时找最近似的块。
+
+关键：入库/查询都**显式传向量**（embeddings），不配 embedding_function。
+【为什么】配了 embedding_function，Chroma 会在本地自己做一个 embedding 模型来转文字，
+既占内存又和我们用的百炼模型不一致；我们显式给向量，Chroma 就纯当"存储+检索器"用。
 """
 
 import chromadb
@@ -9,17 +14,24 @@ import chromadb
 from app.core.config import settings
 
 _client = None
-_COLLECTION = "doc_chunks"
+_COLLECTION = "doc_chunks"  # 向量库里的"集合"名（类似一张表）
 
 
 def get_client() -> chromadb.Client:
+    """惰性单例：拿到 Chroma 客户端（连接保存在本地文件夹 settings.chroma_dir）。"""
     global _client
     if _client is None:
+        # PersistentClient：数据持久化到本地目录（./data/chroma），重启不丢
         _client = chromadb.PersistentClient(path=settings.chroma_dir)
     return _client
 
 
 def get_collection():
+    """获取/创建文档块集合。
+
+    metadata={"hnsw:space": "cosine"}：用"余弦距离"衡量两个向量像不像（越小越像）。
+    get_or_create：没有就建、有了就用（幂等，重启动也能用同一个集合）。
+    """
     coll = get_client().get_or_create_collection(
         name=_COLLECTION,
         metadata={"hnsw:space": "cosine"},
@@ -33,7 +45,13 @@ def add_document_chunks(
     chunks: list[str],
     embeddings: list[list[float]],
 ) -> None:
-    """把一个文档的全部切块 + 向量写入向量库。id 形如 "doc_id-块序号"。"""
+    """把一个文档的全部切块 + 向量写入向量库。
+
+    【每一条记录的样子】id（块唯一编号，形如 "文档id-块序号"）+ 向量 + 原文 + 元数据。
+    元数据（metadata）用来"按条件筛选"：
+      - kb_id：检索时只在某个知识库内找（where 过滤）
+      - doc_id + chunk_index：删文档时按 doc_id 一键全删；展示时知道来自第几块
+    """
     coll = get_collection()
     coll.add(
         ids=[f"{doc_id}-{i}" for i in range(len(chunks))],
@@ -57,14 +75,18 @@ def query(
     query_embedding: list[float],
     top_k: int = 5,
 ) -> list[tuple[str, float, dict]]:
-    """在某个知识库内做向量检索。返回 [(片段文本, 相似度, 元数据)]。"""
+    """在某个知识库内做向量检索。返回 [(片段文本, 余弦距离, 元数据)]。
+
+    【原理】把查询向量和集合里所有向量比"方向远近"，取最近的 top_k 个。
+    where={"kb_id": kb_id} 限定只在当前知识库内比，不跨库。
+    """
     coll = get_collection()
     res = coll.query(
         query_embeddings=[query_embedding],
         n_results=top_k,
         where={"kb_id": kb_id},
     )
-    texts = res["documents"][0]
+    texts = res["documents"][0]   # Chroma 返回格式是嵌套两层，取 [0]
     scores = res["distances"][0]
     metadatas = res["metadatas"][0]
     return [(t, s, m) for t, s, m in zip(texts, scores, metadatas)]
@@ -85,6 +107,7 @@ def keyword_exists(kb_id: int, keywords: list[str]) -> bool:
     texts = res["documents"] or []
     for kw in keywords:
         kw_l = kw.lower()
+        # 任何一个关键词，只要有某块文本包含它 → 说明这个词真实存在
         if any(kw_l in (t or "").lower() for t in texts):
             return True
     return False

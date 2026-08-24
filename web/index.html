@@ -38,8 +38,8 @@
             <div class="field">
               <label for="f-model">模型</label>
               <select id="f-model">
-                <option value="qwen-turbo">qwen-turbo（调试/便宜）</option>
-                <option value="qwen-plus">qwen-plus（演示/更强）</option>
+                <option value="qwen3.7-plus">qwen3.7-plus（有免费额度）</option>
+                <option value="qwen-turbo">qwen-turbo（便宜/调试）</option>
               </select>
             </div>
             <div class="field">
@@ -56,7 +56,7 @@
             </div>
             <div class="field full">
               <label for="f-prompt">提示词模板（Prompt）</label>
-              <textarea id="f-prompt" rows="4" placeholder="你是{role}，请用中文回答。\n当用户问产品问题时，用简洁的语言回答。"></textarea>
+              <textarea id="f-prompt" rows="4" placeholder="给这个助手写的『岗位说明书』，对话时会作为人设发给大模型。&#10;例：你是一位耐心的手机售后客服，回答要简洁、礼貌，只回答与产品相关的问题。"></textarea>
             </div>
             <div class="field">
               <label for="f-tools">绑定工具（逗号分隔）</label>
@@ -141,7 +141,20 @@
         </div>
       </section>
       <section id="tab-chat" class="panel">
-        <div class="placeholder">💬 对话服务 —— 模块 3 接入<br><span>选一个 Agent 直接对话</span></div>
+        <div class="card chat-card">
+          <div class="card-head">
+            <h2>对话</h2>
+            <select id="chat-agent" class="search" onchange="newChat()"></select>
+          </div>
+          <div id="chat-box" class="chat-box">
+            <div class="chat-hint">先在上方选一个 AI 助手，然后开始聊天</div>
+          </div>
+          <div class="row">
+            <input id="chat-input" placeholder="输入消息，回车发送…" class="grow"
+                   onkeydown="if(event.key==='Enter')sendChat()">
+            <button class="btn primary" onclick="sendChat()">发送 ➤</button>
+          </div>
+        </div>
       </section>
       <section id="tab-logs" class="panel">
         <div class="placeholder">📋 工具调用日志 —— 模块 5 接入<br><span>看 Agent 每一步调用了什么工具</span></div>

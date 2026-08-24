@@ -127,7 +127,7 @@ function startEdit(id) {
     document.getElementById("f-name").value = a.name;
     document.getElementById("f-desc").value = a.description || "";
     document.getElementById("f-prompt").value = a.prompt_template || "";
-    document.getElementById("f-model").value = a.model_name || "qwen-turbo";
+    document.getElementById("f-model").value = a.model_name || "qwen3.7-plus";
     document.getElementById("f-temp").value = a.temperature;
     document.getElementById("f-max-tokens").value = a.max_tokens;
     document.getElementById("f-rag").checked = !!a.use_rag;
@@ -318,6 +318,70 @@ async function searchKb() {
   }
 }
 
+/* ---------- 对话服务 ---------- */
+
+let chatSessionId = null; // 当前会话号（页面上所有消息共用，发给后端）
+let chatAgentId = null;   // 当前选中的 Agent id
+
+// 下拉框加载所有 Agent，供用户挑选对话对象
+async function loadChatAgents() {
+  const sel = document.getElementById("chat-agent");
+  try {
+    const data = await api("GET", "/agents?size=100");
+    sel.innerHTML = '<option value="">—— 选择 Agent ——</option>' +
+      data.items.map((a) => `<option value="${a.id}">#${a.id} ${esc(a.name)}</option>`).join("");
+  } catch (e) {
+    sel.innerHTML = '<option value="">加载失败</option>';
+  }
+}
+
+// 切换 Agent 时开一个新的会话（模块3 是单轮；模块4 起 session 才有历史）
+function newChat() {
+  const sel = document.getElementById("chat-agent");
+  chatAgentId = sel.value ? Number(sel.value) : null;
+  // 生成一个"不会重复"的会话号（时间 + 随机数凑的）
+  chatSessionId = "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  document.getElementById("chat-box").innerHTML =
+    `<div class="chat-hint">已选 Agent${chatAgentId ? ` #${chatAgentId}` : ""}，开始聊天吧</div>`;
+  document.getElementById("chat-input").value = "";
+  document.getElementById("chat-input").focus();
+}
+
+// 把一条消息显示到聊天气泡区。role: "user"（自己，靠右）/ "assistant"（助手，靠左）
+function appendChat(role, text) {
+  const box = document.getElementById("chat-box");
+  const hint = box.querySelector(".chat-hint");
+  if (hint) hint.remove(); // 第一条真实消息出现时，去掉占位提示
+  const div = document.createElement("div");
+  div.className = "msg " + role;
+  div.innerHTML = `<span class="bubble">${esc(text)}</span>`;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight; // 自动滚到底部
+}
+
+// 发送消息：POST /api/chat，把回答加到气泡区
+async function sendChat() {
+  if (!chatAgentId) return toast("请先选择 Agent", "err");
+  const input = document.getElementById("chat-input");
+  const text = input.value.trim();
+  if (!text) return;
+  appendChat("user", text);
+  input.value = "";
+  toast("思考中…");
+  try {
+    const data = await api("POST", "/chat", {
+      agent_id: chatAgentId,
+      session_id: chatSessionId,
+      message: text,
+    });
+    appendChat("assistant", data.reply);
+    toast("回答完成", "ok");
+  } catch (e) {
+    appendChat("assistant", "（出错了：" + e.message + "）");
+    toast("对话失败", "err");
+  }
+}
+
 /* ---------- 页签切换 ---------- */
 
 document.querySelectorAll(".tab").forEach((btn) => {
@@ -342,3 +406,4 @@ function debounce(fn, ms) {
 
 loadAgents();
 loadKnowledgeBases();
+loadChatAgents();

@@ -30,3 +30,7 @@ chunker/*.exe
 
 # 测试样例（本地造数据用，不入库）
 scripts/*.txt
+
+# 面试 PDF 及其临时产物（个人材料 + 生成物，不入库）
+docs/*.pdf
+docs/*_tmp*.html

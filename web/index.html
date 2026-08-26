@@ -144,7 +144,10 @@
         <div class="card chat-card">
           <div class="card-head">
             <h2>对话</h2>
-            <select id="chat-agent" class="search" onchange="newChat()"></select>
+            <div class="row" style="margin-bottom:0">
+              <select id="chat-agent" class="search"></select>
+              <button class="btn ghost" onclick="newChat()" title="清空当前聊天记录，开始新会话">🔄 新会话</button>
+            </div>
           </div>
           <div id="chat-box" class="chat-box">
             <div class="chat-hint">先在上方选一个 AI 助手，然后开始聊天</div>
@@ -154,6 +157,7 @@
                    onkeydown="if(event.key==='Enter')sendChat()">
             <button class="btn primary" onclick="sendChat()">发送 ➤</button>
           </div>
+          <p class="chat-note">提示：助手记得本次会话里的内容；点「新会话」可清空重来。</p>
         </div>
       </section>
       <section id="tab-logs" class="panel">

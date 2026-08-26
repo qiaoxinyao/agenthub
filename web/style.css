@@ -153,6 +153,7 @@ td.empty { text-align: center; color: var(--muted); padding: 28px; }
 }
 .msg.user .bubble { background: var(--primary); color: #fff; border-bottom-right-radius: 3px; }
 .msg.assistant .bubble { background: #fff; border: 1px solid var(--border); border-bottom-left-radius: 3px; }
+.chat-note { font-size: 12px; color: var(--muted); margin-top: 8px; }
 
 /* ---------- 占位页签（尚未开发的模块） ---------- */
 .placeholder {

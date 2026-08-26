@@ -335,14 +335,15 @@ async function loadChatAgents() {
   }
 }
 
-// 切换 Agent 时开一个新的会话（模块3 是单轮；模块4 起 session 才有历史）
+// 切换 Agent 时开一个新的会话（换 Agent 或点"新会话"都走这里）
 function newChat() {
   const sel = document.getElementById("chat-agent");
   chatAgentId = sel.value ? Number(sel.value) : null;
-  // 生成一个"不会重复"的会话号（时间 + 随机数凑的）
+  // 生成一个"不会重复"的会话号（时间 + 随机数凑的）。
+  // 模块4 起：同一会话号的消息历史存 Redis，后端每次把最近几轮拼给模型 → 助手有记忆
   chatSessionId = "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   document.getElementById("chat-box").innerHTML =
-    `<div class="chat-hint">已选 Agent${chatAgentId ? ` #${chatAgentId}` : ""}，开始聊天吧</div>`;
+    `<div class="chat-hint">已选 Agent${chatAgentId ? ` #${chatAgentId}` : ""}，开始聊天吧（本次会话内它有记忆）</div>`;
   document.getElementById("chat-input").value = "";
   document.getElementById("chat-input").focus();
 }

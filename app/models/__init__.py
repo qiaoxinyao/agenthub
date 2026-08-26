@@ -7,6 +7,7 @@
 
 from app.models.agent import Agent, AgentKbBinding
 from app.models.knowledge import Document, KnowledgeBase
+from app.models.session import Session
 
 # __all__：声明"这个包对外提供哪些名字"，方便 from app.models import * 时一次拿全
-__all__ = ["Agent", "AgentKbBinding", "Document", "KnowledgeBase"]
+__all__ = ["Agent", "AgentKbBinding", "Document", "KnowledgeBase", "Session"]

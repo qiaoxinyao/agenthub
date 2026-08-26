@@ -70,10 +70,16 @@ def test_create_and_list_kb(client):
     assert r.status_code == 201, r.text
     kb_id = r.json()["id"]
     try:
-        # size=100：一次多取点，新库排在清单里一定能被扫到（避免分页漏掉）
-        lst = client.get("/api/knowledge-bases", params={"size": 100}).json()
-        assert lst["total"] >= 1
-        assert any(kb["id"] == kb_id for kb in lst["items"])
+        # 库越来越多（多轮测试累积），新库可能不在第一页。
+        # 先拿总数，再翻到最后一页找刚建的（按 id 升序，新的在最后）。
+        first = client.get("/api/knowledge-bases", params={"page": 1, "size": 100}).json()
+        assert first["total"] >= 1
+        pages = (first["total"] + 99) // 100  # 向上取整算页数
+        found = any(kb["id"] == kb_id for kb in first["items"])
+        if not found and pages > 1:
+            last = client.get("/api/knowledge-bases", params={"page": pages, "size": 100}).json()
+            found = any(kb["id"] == kb_id for kb in last["items"])
+        assert found, f"新建的知识库 {kb_id} 应出现在列表里"
         # 重名冲突
         r2 = client.post("/api/knowledge-bases", json={"name": name})
         assert r2.status_code == 409

@@ -19,7 +19,7 @@ pypdf>=4.0             # PDF 文本提取
 python-multipart       # FastAPI 文件上传
 
 # ---- 模块4 加入：会话上下文 ----
-# redis>=5.0
+redis>=5.0
 
 # ---- 测试（阶段0 安装）----
 pytest>=8.0

@@ -45,15 +45,13 @@ app = FastAPI(
 
 # 路由按模块逐步挂载（一次一个功能）：invoke include_router 把某个模块的所有接口接进来。
 # prefix="/api"：统一让所有接口都以 /api 开头（比如 /api/agents、/api/knowledge-bases）
-from app.api import agents, chat, knowledge, sessions  # noqa: E402
+from app.api import agents, chat, knowledge, sessions, tool_logs  # noqa: E402
 
 app.include_router(agents.router, prefix="/api")
 app.include_router(knowledge.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
 app.include_router(sessions.router, prefix="/api")
-# 后续模块完成后再挂载：
-#   from app.api import tool_logs
-#   app.include_router(tool_logs.router, prefix="/api")
+app.include_router(tool_logs.router, prefix="/api")
 
 # 控制台前端（静态托管）：/ui → web/index.html
 # html=True：访问 /ui 时自动返回 index.html（相当于"打开这个文件夹时默认给首页"）

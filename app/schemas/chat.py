@@ -24,6 +24,7 @@ class ChatRequest(BaseModel):
         description="会话号（推荐前端用 UUID 生成）",
     )
     message: str = Field(..., min_length=1, description="用户说的话")
+    stream: bool = Field(default=False, description="true 时后端用 SSE 流式推送回答（打字机效果）")
 
 
 class ChatResponse(BaseModel):

@@ -86,3 +86,92 @@ def chat(
     )
     # choices[0].message.content：取第一个候选回答的文本；答不出来时可能是空串，顶成 ""
     return resp.choices[0].message.content or ""
+
+
+def chat_completion(
+    messages: list[dict],
+    tools: list[dict] | None = None,
+    model: Optional[str] = None,
+    temperature: float = 0.7,
+    max_tokens: int = 1024,
+) -> tuple[str, list[dict]]:
+    """对话（支持工具调用）。返回 (回答文本, 工具调用列表)。
+
+    【大白话】给大模型两个选择：
+    - 直接回答用户（tools 里没有合适的）→ tool_calls 为空，content 就是回答
+    - 认为该调某个工具（用户问时间/要查资料）→ content 通常为空，tool_calls
+      返回"请用这些参数调 xx 工具"的请求，由后端去真执行。
+
+    返回的 tool_calls 形如：
+      [{"id":"call_xxx","function":{"name":"get_time","arguments":"{}"}}]
+    """
+    model = model or settings.chat_model
+    kwargs: dict = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+    }
+    if tools:
+        kwargs["tools"] = tools  # 只在需要时传，避免无谓的开销
+
+    resp = get_client().chat.completions.create(**kwargs)
+    msg = resp.choices[0].message  # 通过属性访问，兼容各版本 SDK
+    content = msg.content or ""
+    calls = []
+    for tc in msg.tool_calls or []:
+        calls.append({
+            "id": tc.id,
+            "name": tc.function.name,
+            "arguments": tc.function.arguments,  # 注意：这是 JSON 字符串，要 json.loads
+        })
+    return content, calls
+
+
+def completion_stream(
+    messages: list[dict],
+    tools: list[dict] | None = None,
+    model: Optional[str] = None,
+    temperature: float = 0.7,
+    max_tokens: int = 1024,
+):
+    """流式对话（打字机效果）。逐块 yield 规范化增量：
+
+      {"content": "某一段文本"}                          —— 直接给前端追加显示
+      {"tool_calls": [{"index":0,"id":"..","name":"..","arguments":".."}, ...]}  —— 工具调用增量（name/arguments 是片段，需累积）
+
+    底层用百炼的 stream=True（SSE），逐 token/chunk 返回。
+    """
+    model = model or settings.chat_model
+    kwargs: dict = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "stream": True,  # 关键：开启流式
+    }
+    if tools:
+        kwargs["tools"] = tools
+
+    stream = get_client().chat.completions.create(**kwargs)
+    for chunk in stream:
+        if not chunk.choices:
+            continue
+        delta = chunk.choices[0].delta
+        out: dict = {}
+        if getattr(delta, "content", None):
+            out["content"] = delta.content
+        tool_calls = getattr(delta, "tool_calls", None) or []
+        if tool_calls:
+            tcs = []
+            for tc in tool_calls:
+                fn = getattr(tc, "function", None)
+                tcs.append({
+                    "index": getattr(tc, "index", 0),
+                    "id": getattr(tc, "id", "") or "",
+                    "name": (getattr(fn, "name", "") or "") if fn else "",
+                    "arguments": (getattr(fn, "arguments", "") or "") if fn else "",
+                })
+            out["tool_calls"] = tcs
+        if out:
+            yield out

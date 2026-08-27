@@ -69,3 +69,37 @@ def test_chat_default_prompt_fallback(client):
         assert len(resp.json()["reply"]) > 0
     finally:
         client.delete(f"/api/agents/{agent_id}")
+
+
+def test_chat_stream_sse(client):
+    """流式对话：stream=true 应返回 SSE，且把完整回答以 data: 块推出来。"""
+    name = _uniq("流式")
+    r = client.post("/api/agents", json={
+        "name": name,
+        "prompt_template": "你是流式测试助手，回答别超过三句话。",
+        "max_tokens": 150,
+    })
+    agent_id = r.json()["id"]
+    try:
+        resp = client.post("/api/chat", json={
+            "agent_id": agent_id, "message": "你好",
+            "stream": True,
+        })
+        assert resp.status_code == 200
+        assert "text/event-stream" in resp.headers.get("content-type", "").lower()
+        body = resp.text
+        assert "data:" in body, "流式响应应包含 SSE 的 data: 前缀"
+        # 把 delta 帧拼起来，应还原出一段非空回答
+        import json as _json
+        full = ""
+        for line in body.splitlines():
+            if line.startswith("data: "):
+                try:
+                    evt = _json.loads(line[6:])
+                except Exception:  # noqa: BLE001
+                    continue
+                if evt.get("type") == "delta":
+                    full += evt.get("text", "")
+        assert len(full) > 5, f"流式应拼出完整回答，实际: {full!r}"
+    finally:
+        client.delete(f"/api/agents/{agent_id}")

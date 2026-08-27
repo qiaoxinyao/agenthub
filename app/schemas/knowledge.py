@@ -13,10 +13,15 @@ from pydantic import BaseModel, ConfigDict, Field
 # ---------- 知识库 ----------
 
 class KnowledgeBaseCreate(BaseModel):
-    """创建知识库的请求体。name 必填、唯一。"""
+    """创建知识库的请求体。name 必填、唯一。
+
+    initial_text 可选：填了就直接作为一份文档入库（创建后文档数=1），
+    省得建完库还要专门去"文档管理"选文件。保留原来的文件上传能力不变。
+    """
 
     name: str = Field(min_length=1, max_length=64)
     description: str = Field(default="", max_length=255)
+    initial_text: str = Field(default="", description="可选：直接写入的一份文档内容（会切块入库）")
 
 
 class KnowledgeBaseOut(BaseModel):

@@ -18,7 +18,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core import chunker, llm  # chunker: 调 Go 切块; llm: 调百炼做向量
-from app.models import Document, KnowledgeBase
+from app.models import AgentKbBinding, Document, KnowledgeBase
 from app.schemas.knowledge import (
     DocumentOut,
     KnowledgeBaseCreate,
@@ -95,7 +95,7 @@ def _extract_text(filename: str, data: bytes) -> str:
 # ---------- 知识库 ----------
 
 def create_kb(db: Session, payload: KnowledgeBaseCreate) -> KnowledgeBaseOut:
-    """创建知识库。重名返回 409。"""
+    """创建知识库。重名返回 409。若带了 initial_text，同时写入一份初始文档（文档数=1）。"""
     if db.scalar(select(KnowledgeBase).where(KnowledgeBase.name == payload.name)):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT,
                             detail=f"知识库 '{payload.name}' 已存在")
@@ -103,7 +103,36 @@ def create_kb(db: Session, payload: KnowledgeBaseCreate) -> KnowledgeBaseOut:
     db.add(kb)
     db.commit()
     db.refresh(kb)
-    return _to_kb_out(kb)
+
+    doc_count = 0
+    if (payload.initial_text or "").strip():
+        # 直接写一份初始文档入库（走和上传文件同一条链路）
+        _ingest_text(db, kb.id, "初始文档.txt", payload.initial_text)
+        doc_count = 1
+
+    return _to_kb_out(kb, doc_count)
+
+
+def delete_kb(db: Session, kb_id: int) -> None:
+    """删除知识库：级联清理 文档+向量+Agent绑定。
+
+    【为什么这么彻底】库里每份文档都在向量库里有花钱的向量，留着是脏数据；
+    Agent 残留的绑定若指向已删库也该清掉，否则检索时查不到。删库 = 一并清。
+    """
+    _kb_or_404(db, kb_id)
+    # 1) 库里所有文档：先清向量，再删台账
+    docs = db.scalars(select(Document).where(Document.kb_id == kb_id)).all()
+    for d in docs:
+        try:
+            vector_store.delete_document_chunks(d.id)
+        except Exception:  # noqa: BLE001 向量清理失败不阻塞删除
+            pass
+        db.delete(d)
+    # 2) 清掉所有指向这个库的 Agent 绑定
+    db.query(AgentKbBinding).filter(AgentKbBinding.knowledge_base_id == kb_id).delete()
+    # 3) 删库本身
+    db.delete(db.get(KnowledgeBase, kb_id))
+    db.commit()
 
 
 def list_kbs(db: Session, page: int = 1, size: int = 20) -> tuple[list[KnowledgeBaseOut], int]:
@@ -124,50 +153,61 @@ def list_kbs(db: Session, page: int = 1, size: int = 20) -> tuple[list[Knowledge
 # ---------- 文档：上传入库（核心链路） ----------
 
 def create_document(db: Session, kb_id: int, filename: str, data: bytes) -> DocumentOut:
-    """上传文档 → 提取文本 → 调 Go 切块 → 向量化 → 写 Chroma → 更新台账。
+    """上传文档 → 提取文本 → 入库链路（切块→向量→Chroma→台账）。
 
     【设计取舍：同步处理】这一版选择"上传后同步干完所有活再返回"（而不是异步后台）：
     文件小、能立刻给用户反馈（状态直接从处理中→就绪），且不引入后台任务框架（范围收敛）。
-    状态机字段（pending/processing/ready/failed）已预留，将来要异步也兼容。
-
-    关键流程（代码里的 try 块就是这条流水线）：
-      1. 先在 documents 表建一行台账（status=processing）
-      2. 提取文字 → 切块 → 向量化 → 写入向量库
-      3. 成功 → status=ready，记录切了几块；失败 → status=failed，记录原因
     """
     _kb_or_404(db, kb_id)
     ext = Path(filename).suffix.lower().lstrip(".")
     if ext not in ALLOWED_TYPES:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail=f"仅支持 PDF/TXT/MD，收到 .{ext}")
+    try:
+        text = _extract_text(filename, data)  # 提取纯文本（PDF 用 pypdf，txt/md 直接解码）
+    except HTTPException:
+        raise
+    return _ingest_text(db, kb_id, filename, text, file_type=ext, size_bytes=len(data))
 
+
+def _ingest_text(
+    db: Session,
+    kb_id: int,
+    filename: str,
+    text: str,
+    file_type: str = "txt",
+    size_bytes: int | None = None,
+) -> DocumentOut:
+    """把一段纯文本走完整入库链路（切块 → 向量化 → 写 Chroma → 更新台账）。
+
+    【为什么独立成函数】"上传文件"和"创建知识库时直接填内容"都要干这件事，
+    抽出来复用，避免两份代码跑漂。同步处理；失败标 failed 并回滚残留向量。
+    """
     # 先落台账，拿到 doc.id（下面向量库元数据要用它）
     doc = Document(
-        kb_id=kb_id, filename=filename, file_type=ext,
-        size_bytes=len(data), status="processing",
+        kb_id=kb_id, filename=filename, file_type=file_type,
+        size_bytes=size_bytes or len(text.encode("utf-8")), status="processing",
     )
     db.add(doc)
     db.commit()
 
     try:
-        text = _extract_text(filename, data)   # 1) 提取纯文本
         if not text.strip():
-            raise ValueError("未能提取出文本（PDF 可能是扫描图片）")
-        chunks = chunker.chunk_text(text)       # 2) 调 Go 服务切块
-        embeddings = llm.embed_texts(chunks)    # 3) 每块转成向量
-        vector_store.add_document_chunks(kb_id, doc.id, chunks, embeddings)  # 4) 写入向量库
+            raise ValueError("文档内容为空，无法入库")
+        chunks = chunker.chunk_text(text)               # 1) 调 Go 服务切块
+        embeddings = llm.embed_texts(chunks)            # 2) 每块转成向量
+        vector_store.add_document_chunks(kb_id, doc.id, chunks, embeddings)  # 3) 写入向量库
         doc.status = "ready"
         doc.chunk_count = len(chunks)
         doc.error_msg = ""
-    except Exception as e:  # noqa: BLE001 流水线任何一步出错，都统一标记 failed 并记录原因
-        # 清理可能已写入的半截向量（防止出错时残留脏数据，也防重复计费）
+    except Exception as e:  # noqa: BLE001 任一环节出错统一标记 failed 并记录原因
         try:
-            vector_store.delete_document_chunks(doc.id)
+            vector_store.delete_document_chunks(doc.id)  # 清理半截向量，防脏数据/重复计费
         except Exception:  # noqa: BLE001 清理失败不影响主流程
             pass
         doc = db.get(Document, doc.id)  # 重新取（防止会话状态异常）
         doc.status = "failed"
-        doc.error_msg = str(e)[:500]    # 只截前 500 字，避免把超长报错塞进数据库
+        doc.error_msg = str(e)[:500]    # 只截前 500 字，避免超长报错塞进数据库
 
     db.commit()
     db.refresh(doc)
@@ -209,6 +249,28 @@ def delete_document(db: Session, doc_id: int) -> None:
         pass
     db.delete(doc)
     db.commit()
+
+
+def inspect_document(db: Session, doc_id: int) -> dict:
+    """查看一份文档的内容：从 Chroma 取回它入库后的所有切块原文。
+
+    【大白话】MySQL 只存台账（文件名/状态/块数），真正的内容在向量库里。
+    这个接口把 '文档被切成什么样' 读出来，前端就能展示给用户看
+    '这份文档入库后长这样'。文档还没就绪（failed）时没有切块可看。
+    """
+    doc = _doc_or_404(db, doc_id)
+    try:
+        chunks = vector_store.get_document_chunks(doc.id)
+    except Exception:  # noqa: BLE001 比如文档从未向量化（failed）
+        chunks = []
+    return {
+        "doc_id": doc.id,
+        "filename": doc.filename,
+        "file_type": doc.file_type,
+        "status": doc.status,
+        "chunk_count": len(chunks),
+        "chunks": [{"index": i, "text": t} for i, t in chunks],
+    }
 
 
 # ---------- 检索测试 ----------

@@ -43,6 +43,14 @@ def list_kbs(
     return {"items": items, "total": total}
 
 
+# 注册 DELETE 接口（路径 = /api/knowledge-bases/{kb_id}）：
+# 删除知识库会级联清理库内文档、向量、Agent 绑定
+@router.delete("/knowledge-bases/{kb_id}", status_code=204, summary="删除知识库（级联清文档与绑定）")
+def delete_kb(kb_id: int, db: Session = Depends(get_db)):
+    """删除一个知识库及其全部内容。"""
+    knowledge_service.delete_kb(db, kb_id)
+
+
 # 注册 POST 接口（路径 = /api/knowledge-bases/{kb_id}/documents）：上传文档。
 # 这是唯一带文件上传的接口：{kb_id} 指定传到哪个知识库
 @router.post(
@@ -78,6 +86,12 @@ def list_documents(
 
 
 # 注册 DELETE 接口（路径 = /api/documents/{doc_id}）；204 = 删除成功无返回体
+@router.get("/documents/{doc_id}/chunks", summary="查看文档内容（入库后的切块）")
+def inspect_document(doc_id: int, db: Session = Depends(get_db)):
+    """查看一份文档被切块后的内容。文档未就绪时 chunks 为空。"""
+    return knowledge_service.inspect_document(db, doc_id)
+
+
 @router.delete("/documents/{doc_id}", status_code=204, summary="删除文档（同步清理向量）")
 def delete_document(doc_id: int, db: Session = Depends(get_db)):
     """删除文档。会同步把向量库里的内容也清掉（防脏数据 + 防重复计费）。"""

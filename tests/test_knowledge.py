@@ -86,6 +86,7 @@ def test_create_and_list_kb(client):
     finally:
         # 知识库没有删除接口（本次范围），仅清理库内文档
         client.delete(f"/api/documents?kb_id={kb_id}")
+        client.delete(f"/api/knowledge-bases/{kb_id}")  # 级联清文档/向量，不留测试残留
 
 
 def test_upload_txt_search_delete(client):
@@ -130,6 +131,7 @@ def test_upload_txt_search_delete(client):
         assert client.delete(f"/api/documents/{doc_id}").status_code == 404
     finally:
         client.delete(f"/api/documents?kb_id={kb_id}")
+        client.delete(f"/api/knowledge-bases/{kb_id}")  # 级联清文档/向量，不留测试残留
 
 
 def test_upload_pdf_search(client):
@@ -157,6 +159,7 @@ def test_upload_pdf_search(client):
         client.delete(f"/api/documents/{doc_id}")
     finally:
         client.delete(f"/api/documents?kb_id={kb_id}")
+        client.delete(f"/api/knowledge-bases/{kb_id}")  # 级联清文档/向量，不留测试残留
 
 
 def test_upload_reject_bad_type(client):
@@ -174,3 +177,4 @@ def test_upload_reject_bad_type(client):
         assert r.status_code == 400, r.text
     finally:
         client.delete(f"/api/documents?kb_id={kb_id}")
+        client.delete(f"/api/knowledge-bases/{kb_id}")  # 级联清文档/向量，不留测试残留

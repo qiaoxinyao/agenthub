@@ -58,13 +58,33 @@
               <label for="f-prompt">提示词模板（Prompt）</label>
               <textarea id="f-prompt" rows="4" placeholder="给这个助手写的『岗位说明书』，对话时会作为人设发给大模型。&#10;例：你是一位耐心的手机售后客服，回答要简洁、礼貌，只回答与产品相关的问题。"></textarea>
             </div>
-            <div class="field">
-              <label for="f-tools">绑定工具（逗号分隔）</label>
-              <input id="f-tools" placeholder="如：kb_search, get_time">
+            <div class="field full">
+              <label for="f-tools">绑定工具（点击输入框选择，可多选）</label>
+              <div class="tool-field">
+                <input id="f-tools" autocomplete="off"
+                       placeholder="点击这里选择工具，如 kb_search,get_time">
+                <div id="tool-menu" class="tool-menu" hidden>
+                  <div class="tool-option" data-tool="kb_search">
+                    <span class="tool-name">kb_search</span>
+                    <span class="muted">知识库语义检索——回答前先查你上传的资料（RAG）</span>
+                  </div>
+                  <div class="tool-option" data-tool="get_time">
+                    <span class="tool-name">get_time</span>
+                    <span class="muted">获取当前日期时间，如问"现在几点"时使用</span>
+                  </div>
+                  <div class="tool-option" data-tool="get_quote">
+                    <span class="tool-name">get_quote</span>
+                    <span class="muted">随机返回一句励志名言，求鼓励/打气时使用</span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="field">
-              <label for="f-kbs">知识库 id（逗号分隔）</label>
-              <input id="f-kbs" placeholder="模块2 起生效，如：1,2">
+            <div class="field full">
+              <label for="f-kbs">绑定知识库（点击输入框选择，可多选。没库先去「知识库」页签创建）</label>
+              <div class="tool-field">
+                <input id="f-kbs" autocomplete="off" placeholder="点击这里选择知识库">
+                <div id="kb-menu" class="tool-menu" hidden></div>
+              </div>
             </div>
             <div class="field check">
               <label><input type="checkbox" id="f-rag"> 启用知识库检索（use_rag）</label>
@@ -104,6 +124,7 @@
             <input id="kb-desc" placeholder="描述（可选）" class="grow">
             <button class="btn primary" onclick="createKb()">创建</button>
           </div>
+          <textarea id="kb-initial-text" rows="3" placeholder="选填：直接写入一份初始文档内容（创建后文档数=1）。留空则只建空库，之后再去「文档管理」选文件上传。"></textarea>
           <table>
             <thead>
               <tr><th>ID</th><th>知识库</th><th>文档数</th><th>创建时间</th><th>操作</th></tr>
@@ -145,8 +166,8 @@
           <div class="card-head">
             <h2>对话</h2>
             <div class="row" style="margin-bottom:0">
-              <select id="chat-agent" class="search"></select>
-              <button class="btn ghost" onclick="newChat()" title="清空当前聊天记录，开始新会话">🔄 新会话</button>
+              <select id="chat-agent" class="search" onchange="newChat()"></select>
+              <button class="btn ghost" onclick="resetChat()" title="彻底重置：清空聊天记录并重新选择 Agent">🔄 新会话</button>
             </div>
           </div>
           <div id="chat-box" class="chat-box">
@@ -161,9 +182,31 @@
         </div>
       </section>
       <section id="tab-logs" class="panel">
-        <div class="placeholder">📋 工具调用日志 —— 模块 5 接入<br><span>看 Agent 每一步调用了什么工具</span></div>
+        <div class="card">
+          <div class="card-head">
+            <h2>工具调用日志</h2>
+            <div class="row" style="margin-bottom:0">
+              <input id="log-filter" class="search" placeholder="按工具名过滤，如 get_time">
+              <button class="btn primary" onclick="loadToolLogs()">刷新 🔄</button>
+            </div>
+          </div>
+          <div id="log-box" class="log-box">
+            <div class="chat-hint">加载中…</div>
+          </div>
+        </div>
       </section>
     </main>
+  </div>
+
+  <!-- 文档内容预览弹层 -->
+  <div id="doc-modal" class="modal" hidden>
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3 id="doc-modal-title">文档内容</h3>
+        <button class="btn ghost" onclick="closeDocModal()">关闭 ✕</button>
+      </div>
+      <div id="doc-modal-body" class="modal-body"></div>
+    </div>
   </div>
 
   <div id="toast" class="toast" hidden></div>

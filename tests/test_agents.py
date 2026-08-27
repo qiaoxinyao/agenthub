@@ -89,6 +89,7 @@ def test_update_agent_partial(client):
         assert body["use_rag"] is False          # 没传的字段保持不变
     finally:
         client.delete(f"/api/agents/{agent_id}")
+        client.delete(f"/api/knowledge-bases/{kb_id}")  # 测试建的库也删掉，不留残留
 
 
 def test_bind_missing_kb_rejected(client):

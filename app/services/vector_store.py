@@ -70,6 +70,22 @@ def delete_document_chunks(doc_id: int) -> None:
     coll.delete(where={"doc_id": doc_id})
 
 
+def get_document_chunks(doc_id: int) -> list[tuple[int, str]]:
+    """取回某文档的所有切块原文，按块序号排序。返回 [(chunk_index, 文本)]。
+
+    【用途】文档"查看内容"：Chroma 里存着每块原文和序号，从这里读出来，
+    前端即可展示这份文档被切成什么样子后入库的。
+    """
+    coll = get_collection()
+    res = coll.get(where={"doc_id": doc_id}, include=["documents", "metadatas"])
+    items = [
+        (m.get("chunk_index", 0), d)
+        for d, m in zip(res["documents"] or [], res["metadatas"] or [])
+    ]
+    items.sort(key=lambda x: x[0])
+    return items
+
+
 def query(
     kb_id: int,
     query_embedding: list[float],

@@ -66,7 +66,7 @@ agenthub/
 ├── demo/                   ← 收尾阶段的 Streamlit 演示页（暂时空着）
 ├── docs/                   ← 设计/说明文档（architecture 架构、database 表、api 接口……）
 ├── tests/                  ← 自动化测试（test_agents / test_knowledge / test_health）
-├── scripts/                ← 辅助脚本（build_pdf.py 生成面试 PDF）
+├── scripts/                ← 辅助脚本（build_pdf.py 生成）
 ├── data/                   ← 运行时数据：Chroma 向量库落盘处（已 gitignore）
 ├── .env                    ← 【密钥！】百炼 API Key（本地独有，绝不提交）
 ├── requirements.txt        ← Python 依赖清单（相当于 Maven 的 pom.xml）

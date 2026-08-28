@@ -26,7 +26,8 @@ from app.schemas.knowledge import (
     SearchResponse,
     SearchResult,
 )
-from app.services import vector_store
+from app.services import vector_store, retrieval_service
+from app.core import llm  # 用于向量化（ingest 时同步写 ES 需要）
 
 # 允许上传的文件类型白名单。key=扩展名，value=类型名
 ALLOWED_TYPES = {"pdf": "pdf", "txt": "txt", "md": "md"}
@@ -77,7 +78,7 @@ def _extract_text(filename: str, data: bytes) -> str:
     【为什么按扩展名分叉】三种文件本质不同：
     - txt/md：就是普通文本，直接按 utf-8 解码
     - pdf：是"排版格式"文件，文字藏在流里，得靠 pypdf 逐页解析抽出来
-    PDF 是这里唯一的"麻烦精"，也是面试常问的"你们怎么处理 PDF"。
+    PDF 是这里唯一的"麻烦精"。
     """
     ext = Path(filename).suffix.lower().lstrip(".")  # 取出扩展名如 .pdf → "pdf"
     if ext not in ALLOWED_TYPES:
@@ -197,6 +198,7 @@ def _ingest_text(
         chunks = chunker.chunk_text(text)               # 1) 调 Go 服务切块
         embeddings = llm.embed_texts(chunks)            # 2) 每块转成向量
         vector_store.add_document_chunks(kb_id, doc.id, chunks, embeddings)  # 3) 写入向量库
+        retrieval_service.add_document_to_es(kb_id, doc.id, chunks)  # 4) 写入 ES 索引
         doc.status = "ready"
         doc.chunk_count = len(chunks)
         doc.error_msg = ""
@@ -245,7 +247,11 @@ def delete_document(db: Session, doc_id: int) -> None:
     doc = _doc_or_404(db, doc_id)
     try:
         vector_store.delete_document_chunks(doc.id)
-    except Exception:  # noqa: BLE001 向量清理失败不阻塞删除（记录在案，避免删除卡死）
+    except Exception:  # noqa: BLE001 向量清理失败不阻塞删除
+        pass
+    try:
+        retrieval_service.delete_document_from_es(doc.kb_id, doc.id)
+    except Exception:  # noqa: BLE001 ES 清理失败不阻塞删除
         pass
     db.delete(doc)
     db.commit()

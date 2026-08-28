@@ -88,7 +88,7 @@
 ### 14. 工具调用日志
 - `GET /api/tool-call-logs?session_id=xxx&page=1&size=20`
 - 响应：`{ "items": [{tool_name, params, result, status, latency_ms, created_at}], "total": n }`
-- 用途：审计与面试演示"工具调用留证"（模块 5）。
+- 用途：审计与"工具调用留证"（模块 5）。
 
 ## 接口与模块对照表
 

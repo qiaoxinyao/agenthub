@@ -59,6 +59,8 @@ class Settings(BaseSettings):
 
     # ---- Elasticsearch（模块6 起用到：关键词检索，配合向量做双路检索）----
     es_host: str = "http://127.0.0.1:9200"
+    es_user: str = "elastic"         # ES 8.x 默认超级账号
+    es_password: str = ""            # 对应 ES_JAVA_OPTS 里设的密码，或自动生成的初始密码
 
     @property
     def mysql_url(self) -> str:

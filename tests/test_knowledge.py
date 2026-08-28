@@ -178,3 +178,69 @@ def test_upload_reject_bad_type(client):
     finally:
         client.delete(f"/api/documents?kb_id={kb_id}")
         client.delete(f"/api/knowledge-bases/{kb_id}")  # 级联清文档/向量，不留测试残留
+
+# ========== 模块 6：双路检索测试（需 ES 运行）==========
+
+def test_dual_retrieval_keyword_exists(client):
+    """双路检索：关键词存在时应返回结果（ES + Chroma 融合）。"""
+    kb_id = client.post("/api/knowledge-bases", json={"name": _uniq("双路检索库")}).json()["id"]
+    try:
+        # 上传含特定关键词的文档
+        r = client.post(
+            f"/api/knowledge-bases/{kb_id}/documents",
+            files={"file": ("test.txt", SAMPLE_TXT.encode(), "text/plain")},
+        )
+        assert r.status_code == 201, r.text
+        doc_id = r.json()["id"]
+
+        # 搜文档里有的词 → 应命中
+        sr = client.get(f"/api/knowledge-bases/{kb_id}/search", params={"query": "Agent 平台", "top_k": 3})
+        assert sr.status_code == 200
+        hits = sr.json()["results"]
+        assert len(hits) >= 1, f"应命中含'Agent 平台'的段落，实际：{hits}"
+
+        client.delete(f"/api/documents/{doc_id}")
+    finally:
+        client.delete(f"/api/documents?kb_id={kb_id}")
+        client.delete(f"/api/knowledge-bases/{kb_id}")
+
+
+def test_dual_retrieval_keyword_missing(client):
+    """双路检索：关键词全不存在时应返回空（不硬凑）。"""
+    kb_id = client.post("/api/knowledge-bases", json={"name": _uniq("字面验证库")}).json()["id"]
+    try:
+        # 搜完全无关的词 → 应返回空
+        sr = client.get(f"/api/knowledge-bases/{kb_id}/search", params={"query": "喜羊羊红烧肉 xyz123", "top_k": 3})
+        assert sr.status_code == 200
+        assert sr.json()["results"] == [], f"关键词全不存在应返回空，实际：{sr.json()}"
+    finally:
+        client.delete(f"/api/knowledge-bases/{kb_id}")
+
+
+def test_dual_retrieval_fusion(client):
+    """双路检索：融合排序应让'既含关键词又语义相近'的结果排前面。"""
+    kb_id = client.post("/api/knowledge-bases", json={"name": _uniq("融合排序库")}).json()["id"]
+    try:
+        # 上传两段相似但不同的文本
+        txt1 = "AgentHub 支持 RAG 检索，从知识库里找资料。" * 20
+        txt2 = "AgentHub 是个 Agent 平台，能创建多个助手。" * 20
+        client.post(f"/api/knowledge-bases/{kb_id}/documents",
+                    files={"file": ("rag.txt", txt1.encode(), "text/plain")})
+        client.post(f"/api/knowledge-bases/{kb_id}/documents",
+                    files={"file": ("agent.txt", txt2.encode(), "text/plain")})
+
+        # 搜"RAG" → 含 RAG 的那段应排第一
+        sr = client.get(f"/api/knowledge-bases/{kb_id}/search", params={"query": "RAG", "top_k": 2})
+        assert sr.status_code == 200
+        hits = sr.json()["results"]
+        if len(hits) >= 2:
+            # 第一段的 chunk_text 应含"RAG"
+            assert "RAG" in hits[0]["chunk_text"], f"第一名应含 RAG: {hits[0]['chunk_text']}"
+
+        # 清理
+        docs = client.get("/api/documents", params={"kb_id": kb_id}).json()["items"]
+        for d in docs:
+            client.delete(f"/api/documents/{d['id']}")
+    finally:
+        client.delete(f"/api/knowledge-bases/{kb_id}")
+

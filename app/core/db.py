@@ -60,7 +60,7 @@ def init_db() -> None:
     """启动时按模型自动建表（开发期够用；不引入 Alembic，见 decisions.md）。
 
     【为什么用它建表】我们表只有 6 张，且是开发期，create_all 足够。
-    引入 Alembic（专门的迁移工具）对这个小项目是"过度设计"——这是面试可讲的范围收敛点。
+    引入 Alembic（专门的迁移工具）对这个小项目是"过度设计"——体现范围收敛意识。
     """
     import app.models  # noqa: F401   # 确保所有模型都被 import 进内存、注册到 Base.metadata
     Base.metadata.create_all(bind=engine)  # 把 Base 上已注册的所有表，在数据库里建出来（已存在的跳过）

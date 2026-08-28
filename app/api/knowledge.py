@@ -112,5 +112,5 @@ def search(
     top_k: int = Query(default=5, ge=1, le=20),  # 返回最相关的几条（默认 5）
     db: Session = Depends(get_db),
 ):
-    """检索测试：在一个知识库内搜与 query 最相关的片段。"""
+    """检索测试：双路检索（ES 关键词 + Chroma 向量融合），返回最相关的片段。"""
     return knowledge_service.search_kb(db, kb_id, query, top_k)

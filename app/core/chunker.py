@@ -2,7 +2,7 @@
 
 【大白话】切块这个"重活"是交给一个独立的 Go 小服务去做的（不是 Python 自己切）。
 本文件负责：把要切的文字打包发去给 Go 服务，把切好的结果拿回来。
-它相当于 Python 和 Go 之间的一座桥。为什么用 Go 做切块？见 decisions.md（JD 要求 + Go 适合纯计算）。
+它相当于 Python 和 Go 之间的一座桥。为什么用 Go 做切块？见 decisions.md（Go 适合纯计算场景）。
 """
 
 import httpx
